@@ -356,7 +356,7 @@ bool Valid_Spawns(const array<vec,N> &Spawns){
 		}
 	}
 	double vor{Voronoi(0,0,Spawns)};
-	return vor>0.5-asymetry_limit && vor<0.5+asymetry_limit;
+	return vor>1.0/N-asymetry_limit && vor<1.0/N+asymetry_limit;
 }
 
 int Play_Round(const array<string,N> &Bot_Names){

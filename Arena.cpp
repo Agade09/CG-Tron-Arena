@@ -396,7 +396,11 @@ int main(int argc,char **argv){
 	for(int i=0;i<N;++i){
 		Bot_Names[i]=argv[i+1];
 	}
-	cout << "Fighting " << Bot_Names[0] << " with " << Bot_Names[1] << endl;
+	cout << "Testing AI " << Bot_Names[0];
+	for(int i=1;i<N;++i){
+		cerr << " vs " << Bot_Names[i];
+	}
+	cerr << endl;
 	for(int i=0;i<N;++i){//Check that AI binaries are present
 		ifstream Test{Bot_Names[i].c_str()};
 		if(!Test){

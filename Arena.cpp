@@ -213,7 +213,11 @@ string GetMove(AI &Bot,const int turn){
 			Move+=EmptyPipe(Bot.outPipe);
 		}
 	}
-	return IsValidMove(Move)?Move:"";
+	if(!IsValidMove(Move)){
+		cerr << "Loss by Timeout of AI " << Bot.id << endl;
+		throw(0);
+	}
+	return Move;
 }
 
 inline bool Has_Won(const array<AI,N> &Bot,const int idx){

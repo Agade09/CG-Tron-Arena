@@ -270,6 +270,7 @@ int Play_Game(const array<string,N> &Bot_Names,const array<vec,N> &Spawns){
 			}
 		}
 	}
+	throw(0);
 }
 
 inline void Shortest_Paths_Payload(const vec &s,queue<vec> &bfs_queue,array<bool,S> &visited,const array<int,S> &grid,array<char,N*S> &shortest,const vec &candidate,const int id) noexcept{

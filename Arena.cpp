@@ -327,7 +327,6 @@ double Voronoi(const int first_id,const int id,const array<vec,N> &Spawns) noexc
 bool Fair_Spawns(const array<vec,N> &Spawns){
 	for(int i=0;i<N;++i){
 		double vor{Voronoi(0,i,Spawns)};
-		cerr << vor << endl;
 		if(vor<1.0/N-asymetry_limit || vor>1.0/N+asymetry_limit){
 			return false;
 		}

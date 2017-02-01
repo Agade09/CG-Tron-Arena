@@ -15,22 +15,34 @@
 using namespace std;
 using namespace std::chrono;
 
-constexpr double asymetry_limit{0.50};//Positive number, represents a fraction of the board in the Voronoi evaluation
+constexpr double asymetry_limit{0.01};//Positive number, represents a fraction of the board in the Voronoi evaluation
 constexpr bool Debug_AI{true},Timeout{true};
 constexpr int PIPE_READ{0},PIPE_WRITE{1};
 constexpr int H{20},W{30},S{H*W};//Dimensions of the tron board
 constexpr int N{2};//Number of players, 1v1
-constexpr char char_max{std::numeric_limits<char>::max()};
+constexpr int int_max{std::numeric_limits<int>::max()};
+
+enum direction{LEFT=0,DOWN=1,RIGHT=2,UP=3};
+constexpr array<direction,4> Directions{LEFT,RIGHT,DOWN,UP};
 
 struct vec{
 	int x,y;
 	inline bool operator==(const vec &a)const noexcept{
 		return x==a.x && y==a.y;
 	}
+	inline void operator+=(const vec &a)noexcept{
+		x+=a.x;
+		y+=a.y;
+	}
 	inline int idx()const noexcept{
 		return y*W+x;
 	}
+	inline bool valid()const noexcept{
+		return x>=0 && y>=0 && x<W && y<H;
+	}
 };
+
+constexpr array<vec,4> Directions_Vec{vec{-1,0},vec{0,1},vec{1,0},vec{0,-1}};
 
 ostream& operator<<(ostream &os,const vec &r){
 	os << r.x << " " << r.y;
@@ -137,41 +149,9 @@ void StartProcess(AI &Bot){
   	}
 }
 
-void Print_Grid(const AI *Bot,const array<int,S> &grid){
-	for(int i=0;i<H;++i){
-		for(int j=0;j<W;++j){
-			bool botPos{false};
-			for(int k=0;k<N;++k){
-				if(Bot[k].r.idx()==i*W+j){
-					cout << "X" << " ";
-					botPos=true;
-				}
-			}
-			if(!botPos){
-				cout << grid[i*W+j] << " ";
-			}
-		}
-		cout << endl;
-	}
-}
-
-void Output_Grid(const AI *Bot,const array<int,S> &grid){
-	ofstream out("Map.txt",ios::trunc);
-	for(int i=0;i<H;++i){
-		for(int j=0;j<W;++j){
-			bool botPos{false};
-			for(int k=0;k<N;++k){
-				if(Bot[k].r.idx()==i*W+j){
-					out << "X" << " ";
-					botPos=true;
-				}
-			}
-			if(!botPos){
-				out << grid[i*W+j] << " ";
-			}
-		}
-		out << endl;
-	}
+inline bool Move_In_Direction(const direction dir,vec &p)noexcept{
+	p+=Directions_Vec[dir];
+	return p.valid();
 }
 
 void Make_Move(array<int,S> &grid,AI &Bot,const string &Move){
@@ -277,51 +257,39 @@ int Play_Game(const array<string,N> &Bot_Names,const array<vec,N> &Spawns){
 	throw(0);
 }
 
-inline void Shortest_Paths_Payload(const vec &s,queue<vec> &bfs_queue,array<bool,S> &visited,const array<int,S> &grid,array<char,N*S> &shortest,const vec &candidate,const int id) noexcept{
-	int add{candidate.y*W+candidate.x},t{s.y*W+s.x};
-	if(grid[add]==-1){
-		if(!visited[add]){
-			visited[add] = true;
-			shortest[id*S+add]=shortest[id*S+t]+1;
-			bfs_queue.push(candidate);
-		}
-	}
-}
-
-void Shortest_Paths(const int id,const array<int,S> &grid,const vec &pos,array<char,N*S> &shortest)noexcept{
-	vec p=pos;
+void Shortest_Paths(const int id,const array<int,S> &grid,const vec &p,array<int,S> &shortest)noexcept{
 	array<bool,S> visited;
 	fill(visited.begin(),visited.end(),false);
-	fill(shortest.begin()+id*S,shortest.begin()+(id+1)*S,char_max);
-	int start_pos=p.y*W+p.x;
-	shortest[id*S+start_pos]=0;
-    queue<vec> bfs_queue;
-	visited[start_pos] = true;
+	shortest[p.idx()]=0;
+	visited[p.idx()] = true;
+	queue<vec> bfs_queue;
     bfs_queue.push(p);
 	while(!bfs_queue.empty()){
-        vec s = bfs_queue.front(),candidate=s;
+        vec s=bfs_queue.front();
         bfs_queue.pop();
-		if(s.x>0){//check left
-			--candidate.x;
-			Shortest_Paths_Payload(s,bfs_queue,visited,grid,shortest,candidate,id);
-			++candidate.x;
-		}
-		if(s.x<W-1){//check right
-			++candidate.x;
-			Shortest_Paths_Payload(s,bfs_queue,visited,grid,shortest,candidate,id);
-			--candidate.x;
-		}
-		if(s.y>0){//check up
-			--candidate.y;
-			Shortest_Paths_Payload(s,bfs_queue,visited,grid,shortest,candidate,id);
-			++candidate.y;
-		}
-		if(s.y<H-1){//check down
-			++candidate.y;
-			Shortest_Paths_Payload(s,bfs_queue,visited,grid,shortest,candidate,id);
-			--candidate.y;
+		for(const direction d:Directions){
+			vec candidate=s;
+			if(Move_In_Direction(d,candidate)){
+				int add{candidate.idx()};
+				if(grid[add]==-1){
+					if(!visited[add]){
+						visited[add]=true;
+						shortest[add]=shortest[s.idx()]+1;
+						bfs_queue.push(candidate);
+					}
+				}
+			}
 		}
     }
+}
+
+inline int dist(const int id1,const int id2) noexcept{
+	int next{id1},out{0};
+	while(next!=id2){
+		next=next==N-1?0:next+1;
+		++out;
+	}
+	return out;
 }
 
 double Voronoi(const int first_id,const int id,const array<vec,N> &Spawns) noexcept{
@@ -330,26 +298,41 @@ double Voronoi(const int first_id,const int id,const array<vec,N> &Spawns) noexc
 	for(int i=0;i<N;++i){
 		grid[Spawns[i].idx()]=i;
 	}
-	array<char,N*S> shortest;
-	array<double,2> vor{0,0};
-	const int enemy_id{(id+1)%2};
-	Shortest_Paths(id,grid,Spawns[id],shortest);
-	Shortest_Paths(enemy_id,grid,Spawns[enemy_id],shortest);
-	for(int i=S;i--;){
-		int closest_id,s=shortest[id*S+i],t=shortest[enemy_id*S+i];
-		if(s<t){
-			closest_id=0;
+	array<array<int,S>,N> shortest;
+	array<double,N> vor;
+	fill(vor.begin(),vor.end(),0);
+	for(int i=0;i<N;++i){
+		Shortest_Paths(i,grid,Spawns[i],shortest[i]);
+	}
+	for(int i=0;i<S;++i){
+		int min{int_max},closest_id{-1};
+		for(int j=0;j<N;++j){
+			int s{shortest[j][i]};
+			if(s<min || (s==min && dist(first_id,j)<dist(first_id,closest_id))){
+				min=s;
+				closest_id=j;
+			}
 		}
-		else if(t<s){
-			closest_id=1;
+		if(closest_id!=-1){
+			++vor[closest_id];
 		}
 		else{
-			closest_id=first_id;
+			throw(0);
 		}
-		++vor[closest_id];
 	}
-	vor[0]/=vor[0]+vor[1];
-	return vor[0];
+	double total{accumulate(vor.begin(),vor.end(),0.0)};
+	return vor[id]/total;
+}
+
+bool Fair_Spawns(const array<vec,N> &Spawns){
+	for(int i=0;i<N;++i){
+		double vor{Voronoi(0,i,Spawns)};
+		cerr << vor << endl;
+		if(vor<1.0/N-asymetry_limit || vor>1.0/N+asymetry_limit){
+			return false;
+		}
+	}
+	return true;
 }
 
 bool Valid_Spawns(const array<vec,N> &Spawns){
@@ -360,8 +343,7 @@ bool Valid_Spawns(const array<vec,N> &Spawns){
 			}
 		}
 	}
-	double vor{Voronoi(0,0,Spawns)};
-	return vor>1.0/N-asymetry_limit && vor<1.0/N+asymetry_limit;
+	return Fair_Spawns(Spawns);
 }
 
 int Play_Round(const array<string,N> &Bot_Names){
@@ -375,8 +357,7 @@ int Play_Round(const array<string,N> &Bot_Names){
 	}while(!Valid_Spawns(Spawns));
 	array<int,N> winner;
 	for(int i=0;i<N;++i){
-		int w{Play_Game(Bot_Names,Spawns)};
-		winner[i]=w;
+		winner[i]=Play_Game(Bot_Names,Spawns);
 		rotate(Spawns.begin(),Spawns.begin()+1,Spawns.end());
 	}
 	return winner[0]==winner[1]?winner[0]:-1;

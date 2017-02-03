@@ -284,12 +284,7 @@ void Shortest_Paths(const int id,const array<int,S> &grid,const vec &p,array<int
 }
 
 inline int dist(const int id1,const int id2) noexcept{
-	int next{id1},out{0};
-	while(next!=id2){
-		next=next==N-1?0:next+1;
-		++out;
-	}
-	return out;
+	return id2>id1?id2-id1:N-id1+id2;
 }
 
 double Voronoi(const int first_id,const int id,const array<vec,N> &Spawns) noexcept{

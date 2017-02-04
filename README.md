@@ -8,5 +8,6 @@ Usage:
 * Run the Arena program with the names of the AI binaries as command line parameters. e.g: Arena V13 V12
 * Optional: Specify the number of threads as a command line parameter. e.g: Arena V13 V12 2
 * Optional: Adjust fairness of the spawns via the "constexpr double asymetry_limit" variable. 0.50 corresponds to random spawns and 0.01 corresponds to, at worst, starting with 49% of the map according to a basic Voronoi evaluation
+* Optional: Set timeout behavior on or of via the "constexpr bool Timeout" variable. This can be useful as I've noticed timeouts if the computer is being used for something else.
 
 

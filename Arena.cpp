@@ -183,6 +183,25 @@ bool IsValidMove(const string &Move){
 	return dir=="RIGHT" || dir=="LEFT" || dir=="UP" || dir=="DOWN";
 }
 
+void Output_Grid(const array<AI,N> &Bot,const array<int,S> &grid,ostream &out){
+	for(int i=0;i<H;++i){
+		for(int j=0;j<W;++j){
+			bool botPos{false};
+			for(int k=0;k<N;++k){
+				if(Bot[k].r.idx()==i*W+j){
+					out << static_cast<char>('A'+k) << " ";
+					botPos=true;
+				}
+			}
+			if(!botPos){
+				out << grid[i*W+j]+1 << " ";
+			}
+		}
+		out << endl;
+	}
+	out << endl;
+}
+
 string GetMove(AI &Bot,const int turn){
 	pollfd outpoll{Bot.outPipe,POLLIN|POLLPRI};
 	time_point<system_clock> Start_Time{system_clock::now()};
@@ -194,8 +213,7 @@ string GetMove(AI &Bot,const int turn){
 		}
 	}
 	if(!IsValidMove(Move)){
-		cerr << "Loss by Timeout of AI " << Bot.id << endl;
-		throw(0);
+		throw(1);
 	}
 	return Move;
 }
@@ -209,7 +227,7 @@ inline bool Has_Won(const array<AI,N> &Bot,const int idx){
 	return true;
 }
 
-inline void Play_Move(array<int,S> &grid,const int turn,AI &Bot){
+inline void Play_Move(array<int,S> &grid,const int turn,AI &Bot,const array<AI,N> &Bot_Array){
 	try{
 		Make_Move(grid,Bot,GetMove(Bot,turn));
 		string err_str{EmptyPipe(Bot.errPipe)};
@@ -219,6 +237,14 @@ inline void Play_Move(array<int,S> &grid,const int turn,AI &Bot){
 		}
 	}
 	catch(const int ex){
+		if(ex==1){//Timeout
+			cerr << "Loss by Timeout of AI " << Bot.id << endl;
+			if(Debug_AI){
+				ofstream crashfile("Crash.txt",ios::app);
+				crashfile << "Timeout of AI " << Bot.id << " Name: " << Bot.name << endl;
+				Output_Grid(Bot_Array,grid,crashfile);
+			}
+		}
 		Bot.stop();
 	}
 }
@@ -250,7 +276,7 @@ int Play_Game(const array<string,N> &Bot_Names,const array<vec,N> &Spawns){
 				for(int j=0;j<N;++j){
 					*Bot[i].in << Bot[j].start << " " << Bot[j].r << endl;
 				}
-				Play_Move(grid,turn,Bot[i]);
+				Play_Move(grid,turn,Bot[i],Bot);
 			}
 		}
 	}

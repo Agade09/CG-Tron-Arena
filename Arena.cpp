@@ -139,6 +139,7 @@ void StartProcess(AI &Bot){
 		Bot.outPipe=StdoutPipe[PIPE_READ];
     	Bot.errPipe=StderrPipe[PIPE_READ];
     	Bot.pid=nchild;
+		sleep(3);
   	}
   	else{//failed to create child
   		close(StdinPipe[PIPE_READ]);
@@ -366,7 +367,7 @@ bool Valid_Spawns(const array<vec,N> &Spawns){
 	return Fair_Spawns(Spawns);
 }
 
-int Play_Round(const array<string,N> &Bot_Names){
+int Play_Round(array<string,N> Bot_Names){
 	array<vec,N> Spawns;
 	default_random_engine generator(system_clock::now().time_since_epoch().count());
 	uniform_int_distribution<int> x_Distribution(0,W-1),y_Distribution(0,H-1);
@@ -377,10 +378,10 @@ int Play_Round(const array<string,N> &Bot_Names){
 	}while(!Valid_Spawns(Spawns));
 	array<int,N> winner;
 	for(int i=0;i<N;++i){
-		winner[i]=Play_Game(Bot_Names,Spawns);
-		rotate(Spawns.begin(),Spawns.begin()+1,Spawns.end());
+		winner[i]=(Play_Game(Bot_Names,Spawns)-i)%N;//At round i player n has become player n+i
+		rotate(Bot_Names.begin(),Bot_Names.begin()+1,Bot_Names.end());
 	}
-	return winner[0]==winner[1]?winner[0]:-1;
+	return count(winner.begin(),winner.end(),0);
 }
 
 int main(int argc,char **argv){
@@ -394,8 +395,11 @@ int main(int argc,char **argv){
 		cerr << "Running " << N_Threads << " arena threads" << endl;
 	}
 	array<string,N> Bot_Names;
-	for(int i=0;i<N;++i){
+	for(int i=0;i<2;++i){
 		Bot_Names[i]=argv[i+1];
+	}
+	for(int i=2;i<N;++i){//Fight first AI against N-1 copies of second AI
+		Bot_Names[i]=argv[2];
 	}
 	cout << "Testing AI " << Bot_Names[0];
 	for(int i=1;i<N;++i){
@@ -410,24 +414,21 @@ int main(int argc,char **argv){
 		}
 		Test.close();
 	}
-	int N_Rounds{0},win[2]{0,0},draws{0},wins{0};
-	#pragma omp parallel num_threads(N_Threads) shared(wins,draws,win,N_Rounds)
+	int win[2]{0,0},draws{0},games{0};
+	#pragma omp parallel num_threads(N_Threads) shared(games,draws,win,Bot_Names)
 	while(true){
-		int winner{Play_Round(Bot_Names)};
-		if(winner!=-1){
-			#pragma omp atomic
-			++win[winner];
-			#pragma omp atomic
-			++wins;
-		}
-		else{
+		int AI0_wins{Play_Round(Bot_Names)};
+		if(AI0_wins==1 && N==2){
 			#pragma omp atomic
 			++draws;
 		}
 		#pragma omp atomic
-		++N_Rounds;
-		int N{2*(wins+draws)};
-		double p{static_cast<double>(2*win[0]+draws)/N};
-		cout << "Rounds: " << N_Rounds << " P0: " << 100*p << "% of wins +- " << 100*sqrt(p*(1-p)/N) << "% and "<< draws << " draws." << endl;
+		win[0]+=AI0_wins;
+		#pragma omp atomic
+		win[1]+=N-AI0_wins;
+		#pragma omp atomic
+		games+=N;
+		double p{static_cast<double>(win[0])/games};
+		cout << "Rounds: " << games/N << " P0: " << 100*p << "% of wins +- " << 100*sqrt(p*(1-p)/games) << "% and "<< draws << " draws." << endl;
 	}
 }

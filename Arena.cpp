@@ -378,7 +378,8 @@ int Play_Round(array<string,N> Bot_Names){
 	}while(!Valid_Spawns(Spawns));
 	array<int,N> winner;
 	for(int i=0;i<N;++i){
-		winner[i]=(Play_Game(Bot_Names,Spawns)-i)%N;//At round i player n has become player n+i
+		winner[i]=(Play_Game(Bot_Names,Spawns)+N-i)%N;//At round i player n has become player n+i
+		cerr << winner[i] << endl;
 		rotate(Bot_Names.begin(),Bot_Names.begin()+1,Bot_Names.end());
 	}
 	return count(winner.begin(),winner.end(),0);

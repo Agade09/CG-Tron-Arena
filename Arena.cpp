@@ -43,6 +43,11 @@ struct vec{
 	}
 };
 
+struct voronoi_point{
+	vec r;
+	int id;
+};
+
 constexpr array<vec,4> Directions_Vec{vec{-1,0},vec{0,1},vec{1,0},vec{0,-1}};
 
 ostream& operator<<(ostream &os,const vec &r){
@@ -285,71 +290,41 @@ int Play_Game(const array<string,N> &Bot_Names,const array<vec,N> &Spawns){
 	throw(0);
 }
 
-void Shortest_Paths(const int id,const array<int,S> &grid,const vec &p,array<int,S> &shortest)noexcept{
-	array<bool,S> visited;
-	fill(visited.begin(),visited.end(),false);
-	shortest[p.idx()]=0;
-	visited[p.idx()] = true;
-	queue<vec> bfs_queue;
-    bfs_queue.push(p);
-	while(!bfs_queue.empty()){
-        vec s=bfs_queue.front();
-        bfs_queue.pop();
-		for(const direction d:Directions){
-			vec candidate=s;
-			if(Move_In_Direction(d,candidate)){
-				int add{candidate.idx()};
-				if(grid[add]==-1){
-					if(!visited[add]){
-						visited[add]=true;
-						shortest[add]=shortest[s.idx()]+1;
-						bfs_queue.push(candidate);
-					}
-				}
-			}
-		}
-    }
-}
-
-inline int dist(const int id1,const int id2) noexcept{
-	return id2>id1?id2-id1:N-id1+id2;
-}
-
-double Voronoi(const int first_id,const int id,const array<vec,N> &Spawns) noexcept{
+double Voronoi(const int id,const array<vec,N> &Spawns){
 	array<int,S> grid;
 	fill(grid.begin(),grid.end(),-1);
 	for(int i=0;i<N;++i){
 		grid[Spawns[i].idx()]=i;
 	}
-	array<array<int,S>,N> shortest;
 	array<double,N> vor;
 	fill(vor.begin(),vor.end(),0);
+	array<bool,H*W> visited;
+	fill(visited.begin(),visited.end(),false);
+	queue<voronoi_point> bfs_queue;
 	for(int i=0;i<N;++i){
-		Shortest_Paths(i,grid,Spawns[i],shortest[i]);
+		bfs_queue.push({Spawns[i],i});
+		visited[Spawns[i].idx()]=true;
 	}
-	for(int i=0;i<S;++i){
-		int min{int_max},closest_id{-1};
-		for(int j=0;j<N;++j){
-			int s{shortest[j][i]};
-			if(s<min || (s==min && dist(first_id,j)<dist(first_id,closest_id))){
-				min=s;
-				closest_id=j;
+	while(!bfs_queue.empty()){
+		voronoi_point v=bfs_queue.front();
+		bfs_queue.pop();
+		for(const direction dir:Directions){
+			vec candidate=v.r;
+			if(Move_In_Direction(dir,candidate) && grid[candidate.idx()]==-1){
+				if(!visited[candidate.idx()]){
+					visited[candidate.idx()]=true;
+					bfs_queue.push(voronoi_point{candidate,v.id});
+				}
 			}
 		}
-		if(closest_id!=-1){
-			++vor[closest_id];
-		}
-		else{
-			throw(0);
-		}
+		++vor[v.id];
 	}
-	double total{accumulate(vor.begin(),vor.end(),0.0)};
-	return vor[id]/total;
+	return vor[id]/accumulate(vor.begin(),vor.end(),0.0);
 }
 
 bool Fair_Spawns(const array<vec,N> &Spawns){
 	for(int i=0;i<N;++i){
-		double vor{Voronoi(0,i,Spawns)};
+		double vor{Voronoi(i,Spawns)};
 		if(vor<1.0/N-asymetry_limit || vor>1.0/N+asymetry_limit){
 			return false;
 		}

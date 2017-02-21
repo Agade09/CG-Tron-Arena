@@ -16,11 +16,12 @@ using namespace std;
 using namespace std::chrono;
 
 constexpr double asymetry_limit{0.01};//Positive number, represents a fraction of the board in the Voronoi evaluation
-constexpr bool Debug_AI{true},Timeout{true};
+constexpr bool Debug_AI{true},Timeout{false};
 constexpr int PIPE_READ{0},PIPE_WRITE{1};
 constexpr int H{20},W{30},S{H*W};//Dimensions of the tron board
 constexpr int N{2};//Number of players, 1v1
 constexpr int int_max{std::numeric_limits<int>::max()};
+constexpr double FirstTurnTime{Timeout?0.15:1.5},TimeLimit{Timeout?0.1:1};
 
 enum direction{LEFT=0,DOWN=1,RIGHT=2,UP=3};
 constexpr array<direction,4> Directions{LEFT,RIGHT,DOWN,UP};
@@ -207,9 +208,9 @@ string GetMove(AI &Bot,const int turn){
 	pollfd outpoll{Bot.outPipe,POLLIN|POLLPRI};
 	time_point<system_clock> Start_Time{system_clock::now()};
 	string Move;
-	while( (!Timeout || static_cast<duration<double>>(system_clock::now()-Start_Time).count()<(turn==1?0.15:0.10)) && !IsValidMove(Move)){
+	while(static_cast<duration<double>>(system_clock::now()-Start_Time).count()<(turn==1?FirstTurnTime:TimeLimit) && !IsValidMove(Move)){
 		double TimeLeft{(turn==1?0.15:0.10)-static_cast<duration<double>>(system_clock::now()-Start_Time).count()};
-		if(poll(&outpoll,1,Timeout?TimeLeft*1000:-1)){
+		if(poll(&outpoll,1,TimeLeft)){
 			Move+=EmptyPipe(Bot.outPipe);
 		}
 	}

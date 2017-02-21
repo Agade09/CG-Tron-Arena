@@ -1,5 +1,5 @@
 ## CG-Tron-Arena
-Referee program to play games between AIs for the Tron game on Codingame. Linux only.
+Referee program to play games between AIs for the Tron game on Codingame. **Linux only**.
 The code only works for 1v1 games but a lot was written with N player games in mind so adaptation to 1v2,1v3 games should be minor.
 
 # Usage:

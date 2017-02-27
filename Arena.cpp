@@ -56,12 +56,12 @@ ostream& operator<<(ostream &os,const vec &r){
 }
 
 inline string EmptyPipe(const int f){
-	char out[5000];
-	fill(out,out+5000,0);
-	int ptr{0};
+	string out;
 	pollfd outpoll{f,POLLIN};
 	while(poll(&outpoll,1,0)){
-		ssize_t bytes_read{read(f,out+(ptr++),1)};
+		char c;
+		ssize_t bytes_read{read(f,&c,1)};
+		out+=c;
 		if(bytes_read<1){
 			throw(0);
 		}

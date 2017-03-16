@@ -3,7 +3,6 @@
 #include <fstream>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <ext/stdio_filebuf.h>
 #include <poll.h>
 #include <array>
 #include <queue>
@@ -12,6 +11,7 @@
 #include <omp.h>
 #include <limits>
 #include <algorithm>
+#include <thread>
 using namespace std;
 using namespace std::chrono;
 
@@ -70,10 +70,8 @@ inline string EmptyPipe(const int f){
 }
 
 struct AI{
-	int id,pid,outPipe,errPipe;
+	int id,pid,outPipe,errPipe,inPipe;
 	string name;
-	ostream *in;
-	__gnu_cxx::stdio_filebuf<char> inBuff;
 	vec r,start;
 	inline bool has_move(const array<int,S> &grid)const noexcept{
 		return (r.y>0 && grid[r.idx()-W]==-1) || (r.y<H-1 && grid[r.idx()+W]==-1) || (r.x<W-1 && grid[r.idx()+1]==-1) || (r.x>0 && grid[r.idx()-1]==-1);
@@ -87,11 +85,16 @@ struct AI{
 	inline bool alive()const{
 		return kill(pid,0)!=-1;//Check if process is still running
 	}
+	inline void Feed_Inputs(const string &inputs){
+		if(write(inPipe,&inputs[0],inputs.size())==-1){
+			throw(5);
+		}
+	}
 	inline ~AI(){
-		stop();
 		close(errPipe);
 		close(outPipe);
-		delete in;
+		close(inPipe);
+		stop();
 	}
 };
 
@@ -132,7 +135,7 @@ void StartProcess(AI &Bot){
 	    close(StdoutPipe[PIPE_WRITE]);
 	    close(StderrPipe[PIPE_READ]);
 	    close(StderrPipe[PIPE_WRITE]);
-	    execl(Bot.name.c_str(),Bot.name.c_str(),(char*)0);//(char*)0 is really important
+	    execl(Bot.name.c_str(),Bot.name.c_str(),(char*)NULL);//(char*)Null is really important
 	    //If you get past the previous line its an error
 	    perror("exec of the child process");
   	}
@@ -140,12 +143,11 @@ void StartProcess(AI &Bot){
   		close(StdinPipe[PIPE_READ]);//Parent does not read from stdin of child
     	close(StdoutPipe[PIPE_WRITE]);//Parent does not write to stdout of child
     	close(StderrPipe[PIPE_WRITE]);//Parent does not write to stderr of child
-    	Bot.inBuff=__gnu_cxx::stdio_filebuf<char>(StdinPipe[PIPE_WRITE], std::ios::out);
-    	Bot.in=new ostream(&Bot.inBuff);
+    	Bot.inPipe=StdinPipe[PIPE_WRITE];
 		Bot.outPipe=StdoutPipe[PIPE_READ];
     	Bot.errPipe=StderrPipe[PIPE_READ];
     	Bot.pid=nchild;
-		sleep(3);
+		this_thread::sleep_for(milliseconds(10));
   	}
   	else{//failed to create child
   		close(StdinPipe[PIPE_READ]);
@@ -279,10 +281,12 @@ int Play_Game(const array<string,N> &Bot_Names,const array<vec,N> &Spawns){
 					Bot[i].stop();
 					continue;
 				}
-				*Bot[i].in << N << " " << i << endl;
+				stringstream ss;
+				ss << N << " " << i << endl;
 				for(int j=0;j<N;++j){
-					*Bot[i].in << Bot[j].start << " " << Bot[j].r << endl;
+					ss << Bot[j].start << " " << Bot[j].r << endl;
 				}
+				Bot[i].Feed_Inputs(ss.str());
 				Play_Move(grid,turn,Bot[i],Bot);
 			}
 		}
